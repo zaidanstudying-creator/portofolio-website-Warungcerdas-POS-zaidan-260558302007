@@ -16,7 +16,7 @@ test('administrator can upload a store logo and customize welcome identity', fun
     $path = Setting::where('key', 'store_logo')->value('value');
     expect($path)->toStartWith('store-logos/');
     Storage::disk('public')->assertExists($path);
-    $this->get('/')->assertOk()->assertSee('Selamat datang pelanggan')->assertSee('Menu segar')->assertSee(route('settings.store-logo', absolute: false));
+    $this->get(route('welcome'))->assertOk()->assertSee('Selamat datang pelanggan')->assertSee('Menu segar')->assertSee(route('settings.store-logo', absolute: false));
     $this->get(route('settings.store-logo'))->assertOk()->assertHeader('Cache-Control', 'no-store, private');
     $order = Order::factory()->create();
     $this->get(route('orders.receipt', $order))->assertOk()->assertSee('Warung Logo')->assertSee(route('settings.store-logo', absolute: false));

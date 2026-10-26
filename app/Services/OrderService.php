@@ -8,6 +8,7 @@ use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Promo;
 use App\Models\Topping;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Arr;
@@ -52,6 +53,47 @@ class OrderService
     }
 
     /**
+     * Build a server-authoritative promo preview for the cashier.
+     *
+     * Catalog prices, eligibility, and the discount amount are resolved from
+     * the database. The client preview is never trusted at checkout.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{subtotal: float, eligible_subtotal: float, promo_amount: float, promo_code: string, message: string}
+     */
+    public function previewPromo(array $data): array
+    {
+        $products = Product::query()
+            ->available()
+            ->whereIn('id', array_column($data['items'], 'product_id'))
+            ->with(['toppings' => fn ($query) => $query->where('is_available', true)])
+            ->get()
+            ->keyBy('id');
+
+        $toppings = Topping::query()
+            ->whereIn('id', $this->requestedToppingIds($data['items']))
+            ->where('is_available', true)
+            ->get()
+            ->keyBy('id');
+
+        $items = $this->prepareItems($data['items'], $products, $toppings);
+        $subtotal = round($items->sum('subtotal'), 2);
+        $resolved = $this->resolvePromo($data['code'] ?? null, $subtotal, $items, $products, lock: false, errorKey: 'code');
+
+        if ($resolved === null) {
+            throw ValidationException::withMessages(['code' => 'Kode promo wajib diisi.']);
+        }
+
+        return [
+            'subtotal' => $subtotal,
+            'eligible_subtotal' => $resolved['eligible_subtotal'],
+            'promo_amount' => $resolved['amount'],
+            'promo_code' => $resolved['promo']->code,
+            'message' => 'Promo '.$resolved['promo']->code.' berhasil diterapkan.',
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     private function persist(array $data): Order
@@ -76,6 +118,15 @@ class OrderService
         $items = $this->prepareItems($data['items'], $products, $toppings);
         $subtotal = round($items->sum('subtotal'), 2);
 
+        $promo = $this->resolvePromo($data['promo_code'] ?? null, $subtotal, $items, $products, lock: true);
+        $promoAmount = $promo['amount'] ?? 0.0;
+
+        if ($promo !== null) {
+            $this->consumePromoUsage($promo['promo']);
+        }
+
+        $subtotalAfterPromo = round($subtotal - $promoAmount, 2);
+
         $discountType = $data['discount_type'] ?? null;
         $discountValue = round((float) ($data['discount_value'] ?? 0), 2);
         $fee = round((float) ($data['additional_fee_amount'] ?? 0), 2);
@@ -85,17 +136,17 @@ class OrderService
             throw ValidationException::withMessages(['discount_value' => 'Nilai diskon tidak valid.']);
         }
 
-        $discount = $discountType === 'percentage' ? round($subtotal * $discountValue / 100, 2) : $discountValue;
+        $discount = $discountType === 'percentage' ? round($subtotalAfterPromo * $discountValue / 100, 2) : $discountValue;
 
-        if ($discount > $subtotal) {
-            throw ValidationException::withMessages(['discount_value' => 'Diskon tidak boleh melebihi subtotal produk dan topping.']);
+        if ($discount > $subtotalAfterPromo) {
+            throw ValidationException::withMessages(['discount_value' => 'Diskon tidak boleh melebihi subtotal setelah promo.']);
         }
 
         if ($fee < 0 || ($fee > 0 && $feeLabel === null)) {
             throw ValidationException::withMessages(['additional_fee_amount' => 'Isi label dan nominal biaya tambahan yang valid.']);
         }
 
-        $total = round($subtotal - $discount + $fee, 2);
+        $total = round($subtotalAfterPromo - $discount + $fee, 2);
         if ($subtotal > 9999999999.99 || $total > 9999999999.99) {
             throw ValidationException::withMessages(['items' => 'Total transaksi melebihi batas penyimpanan.']);
         }
@@ -116,6 +167,9 @@ class OrderService
             'discount_amount' => $discount,
             'additional_fee_label' => $fee > 0 ? $feeLabel : null,
             'additional_fee_amount' => $fee,
+            'promo_id' => $promo['promo']->id ?? null,
+            'promo_amount' => $promoAmount,
+            'promo_code' => $promo['promo']->code ?? null,
             'payment_method' => $payment['payment_method'],
             'amount_paid' => $payment['amount_paid'],
             'change' => $payment['change'],
@@ -332,6 +386,94 @@ class OrderService
     {
         return (string) $exception->getCode() === '23000'
             && str_contains($exception->getMessage(), 'order_number');
+    }
+
+    /**
+     * Resolve an active promo and calculate its discount against the prepared cart.
+     *
+     * @param  Collection<int, array<string, mixed>>  $items
+     * @param  Collection<int, Product>  $products
+     * @return array{promo: Promo, eligible_subtotal: float, amount: float}|null
+     */
+    private function resolvePromo(?string $rawCode, float $subtotal, Collection $items, Collection $products, bool $lock, string $errorKey = 'promo_code'): ?array
+    {
+        $code = $this->normalizePromoCode($rawCode);
+
+        if ($code === null) {
+            return null;
+        }
+
+        $query = Promo::query()->valid()->where('code', $code);
+
+        if ($lock) {
+            $query->lockForUpdate();
+        }
+
+        $promo = $query->first();
+
+        if (! $promo instanceof Promo) {
+            throw ValidationException::withMessages([
+                $errorKey => 'Kode promo tidak valid, tidak aktif, di luar periode, atau sudah habis.',
+            ]);
+        }
+
+        if ($subtotal < (float) $promo->min_subtotal) {
+            throw ValidationException::withMessages([
+                $errorKey => 'Minimal belanja untuk promo ini adalah Rp '.number_format((float) $promo->min_subtotal, 0, ',', '.').'.',
+            ]);
+        }
+
+        $eligibleSubtotal = round($items->filter(function (array $item) use ($promo, $products): bool {
+            $product = $products->get((int) $item['product_id']);
+
+            return $product instanceof Product
+                && $promo->matchesItem((int) $item['product_id'], $product->category_id === null ? null : (int) $product->category_id);
+        })->sum('subtotal'), 2);
+
+        if ($eligibleSubtotal <= 0) {
+            throw ValidationException::withMessages([
+                $errorKey => 'Tidak ada item pada pesanan yang memenuhi syarat promo ini.',
+            ]);
+        }
+
+        return [
+            'promo' => $promo,
+            'eligible_subtotal' => $eligibleSubtotal,
+            'amount' => $promo->calculateDiscount($eligibleSubtotal),
+        ];
+    }
+
+    /**
+     * Consume one use of the promo quota inside the checkout transaction.
+     *
+     * The conditional update keeps usage_count from exceeding usage_limit even
+     * if two checkouts read the same quota at the same time.
+     */
+    private function consumePromoUsage(Promo $promo): void
+    {
+        $affected = Promo::query()
+            ->whereKey($promo->getKey())
+            ->where(function ($query): void {
+                $query->whereNull('usage_limit')
+                    ->orWhereColumn('usage_count', '<', 'usage_limit');
+            })
+            ->increment('usage_count');
+
+        if ($affected === 0) {
+            throw ValidationException::withMessages([
+                'promo_code' => 'Promo sudah habis digunakan.',
+            ]);
+        }
+    }
+
+    /**
+     * Normalize a promo code so case and surrounding whitespace do not change its meaning.
+     */
+    private function normalizePromoCode(?string $code): ?string
+    {
+        $code = $code === null ? null : strtoupper(trim($code));
+
+        return $code === null || $code === '' ? null : $code;
     }
 
     /**

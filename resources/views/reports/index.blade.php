@@ -223,6 +223,44 @@
             </div>
         </div>
 
+        {{-- Order Type Analysis --}}
+        <div class="card p-5">
+            <h3 class="text-sm font-semibold text-slate-900 mb-4">Analisis Jenis Pesanan</h3>
+
+            <div class="min-w-0 overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="th">Jenis Pesanan</th>
+                            <th class="th text-right">Transaksi</th>
+                            <th class="th text-right">Omzet</th>
+                            <th class="th text-right">Rata-rata</th>
+                            <th class="th text-right">HPP</th>
+                            <th class="th text-right">Laba Kotor</th>
+                            <th class="th text-right">Margin</th>
+                            <th class="th text-right">Kontribusi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach ($orderTypeAnalysis as $typeCode => $data)
+                        <tr class="hover:bg-slate-50/70">
+                            <td class="td font-medium text-slate-900">
+                                <x-order-type-badge :type="$typeCode" />
+                            </td>
+                            <td class="td text-right text-slate-600">{{ number_format($data['total_orders']) }}</td>
+                            <td class="td text-right text-slate-700"><x-money :value="$data['total_revenue']" /></td>
+                            <td class="td text-right text-slate-600"><x-money :value="$data['avg_order_value']" /></td>
+                            <td class="td text-right {{ $data['total_hpp'] > 0 ? 'text-slate-600' : 'text-amber-600' }}"><x-money :value="$data['total_hpp']" /></td>
+                            <td class="td text-right font-medium {{ $data['gross_profit'] >= 0 ? 'text-emerald-600' : 'text-red-600' }}"><x-money :value="$data['gross_profit']" /></td>
+                            <td class="td text-right {{ $data['gross_margin'] >= 0 ? 'text-emerald-600' : 'text-red-600' }}">{{ number_format($data['gross_margin'], 1) }}%</td>
+                            <td class="td text-right font-medium text-slate-700">{{ number_format($data['percentage'], 1) }}%</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         {{-- Transaction History --}}
         <div class="card p-5">
             <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
@@ -258,6 +296,7 @@
                             <th class="th">Waktu</th>
                             <th class="th">Tipe</th>
                             <th class="th">Total</th>
+                            <th class="th">Promo</th>
                             <th class="th">Metode</th>
                             <th class="th">Status</th>
                             <th class="th text-right">Aksi</th>
@@ -272,6 +311,16 @@
                                 </td>
                                 <td class="td"><x-order-type-badge :type="$order->type" /></td>
                                 <td class="td font-medium text-slate-700"><x-money :value="$order->total" /></td>
+                                <td class="td">
+                                    @if ((float) $order->promo_amount > 0)
+                                        <span class="block text-xs font-medium text-red-700">− <x-money :value="$order->promo_amount" /></span>
+                                        @if ($order->promo_code)
+                                            <span class="text-[11px] text-slate-500">{{ $order->promo_code }}</span>
+                                        @endif
+                                    @else
+                                        <span class="text-xs text-slate-400">—</span>
+                                    @endif
+                                </td>
                                 <td class="td">
                                     @if ($order->payment_method)
                                         <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium
@@ -302,7 +351,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-5 py-10 text-center text-sm text-slate-500">
+                                <td colspan="8" class="px-5 py-10 text-center text-sm text-slate-500">
                                     Tidak ada transaksi pada filter ini.
                                 </td>
                             </tr>

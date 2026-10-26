@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -30,7 +32,7 @@ class UserController extends Controller
     {
         $data = $request->validated();
 
-        DB::transaction(function () use ($data): void {
+        $user = DB::transaction(function () use ($data): User {
             $user = new User;
             $user->name = $data['name'];
             $user->email = strtolower($data['email']);
@@ -41,7 +43,16 @@ class UserController extends Controller
                 'is_active' => $data['is_active'] ?? true,
             ]);
             $user->save();
+
+            return $user;
         });
+
+        $this->logActivity($request->user(), 'created', $user, [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role->value,
+            'is_active' => $user->is_active,
+        ]);
 
         return redirect()->route('users.index')->with('success', 'Akun berhasil dibuat.');
     }
@@ -56,6 +67,13 @@ class UserController extends Controller
         $data = $request->validated();
         $newRole = UserRole::from($data['role']);
         $actor = $request->user();
+
+        $oldData = [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role->value,
+            'is_active' => $user->is_active,
+        ];
 
         DB::transaction(function () use ($actor, $user, $data, $newRole): void {
             $locked = $this->lockForUpdateById($user->getKey());
@@ -76,9 +94,39 @@ class UserController extends Controller
                 'is_active' => $newActive,
             ]);
             $locked->save();
+
+            $user = $locked;
         });
 
+        $newData = [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role->value,
+            'is_active' => $user->is_active,
+        ];
+
+        $this->logActivity($actor, 'updated', $user, [
+            'old' => $oldData,
+            'new' => $newData,
+        ]);
+
         return redirect()->route('users.index')->with('success', 'Akun berhasil diperbarui.');
+    }
+
+    private function logActivity(User $actor, string $event, User $subject, array $properties): void
+    {
+        ActivityLog::create([
+            'log_name' => 'user_management',
+            'description' => "User {$event}: {$subject->name} ({$subject->email})",
+            'subject_type' => User::class,
+            'subject_id' => $subject->id,
+            'causer_type' => User::class,
+            'causer_id' => $actor->id,
+            'properties' => $properties,
+            'event' => $event,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
     }
 
     /**
@@ -143,5 +191,39 @@ class UserController extends Controller
     private function lockForUpdateById(int $id): User
     {
         return User::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        $actor = $request->user();
+
+        DB::transaction(function () use ($actor, $user): void {
+            $locked = $this->lockForUpdateById($user->getKey());
+
+            if ($actor->is($locked)) {
+                throw ValidationException::withMessages([
+                    'user' => 'Anda tidak dapat menghapus akun Anda sendiri.',
+                ]);
+            }
+
+            if ($locked->isAdmin() && $this->activeAdminCountExcluding($locked) === 0) {
+                throw ValidationException::withMessages([
+                    'user' => 'Tidak dapat menghapus admin aktif terakhir.',
+                ]);
+            }
+
+            $deletedUserData = [
+                'name' => $locked->name,
+                'email' => $locked->email,
+                'role' => $locked->role->value,
+                'is_active' => $locked->is_active,
+            ];
+
+            $locked->delete();
+
+            $this->logActivity($actor, 'deleted', $user, $deletedUserData);
+        });
+
+        return redirect()->route('users.index')->with('success', 'Akun berhasil dihapus.');
     }
 }

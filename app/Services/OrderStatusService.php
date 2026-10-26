@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Models\Promo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -67,6 +68,13 @@ class OrderStatusService
             }
 
             $locked->update(['status' => $to]);
+
+            if ($to === OrderStatus::Cancelled && $locked->promo_id !== null) {
+                Promo::query()
+                    ->whereKey($locked->promo_id)
+                    ->where('usage_count', '>', 0)
+                    ->decrement('usage_count');
+            }
 
             return $order->setRawAttributes($locked->getAttributes(), true);
         });

@@ -111,6 +111,15 @@
                         <dt class="text-slate-500">Total topping</dt>
                         <dd id="pos-topping-total" class="font-medium text-slate-700">Rp 0</dd>
                     </div>
+                    <div class="space-y-2 border-t border-slate-100 pt-3">
+                        <label for="pos-promo-code" class="text-sm text-slate-500">Kode promo <span class="text-slate-400">(opsional)</span></label>
+                        <div class="flex gap-2">
+                            <input id="pos-promo-code" class="input" maxlength="50" placeholder="Contoh: PROMO10" autocomplete="off">
+                            <button type="button" id="pos-promo-apply" class="btn-secondary shrink-0 text-xs">Terapkan</button>
+                        </div>
+                        <p id="pos-promo-feedback" class="hidden text-xs font-medium" role="status"></p>
+                    </div>
+                    <div id="pos-promo-row" class="flex items-center justify-between" hidden><dt id="pos-promo-label" class="text-slate-500">Promo</dt><dd id="pos-promo-amount" class="font-medium text-red-700">− Rp 0</dd></div>
                     <div id="pos-discount-row" class="flex items-center justify-between" hidden><dt id="pos-discount-label" class="text-slate-500">Diskon</dt><dd id="pos-discount-amount" class="font-medium text-red-700">− Rp 0</dd></div>
                     <div id="pos-fee-row" class="flex items-center justify-between" hidden><dt id="pos-fee-label" class="text-slate-500">Biaya tambahan</dt><dd id="pos-fee-amount" class="font-medium text-slate-700">Rp 0</dd></div>
                     <div class="flex flex-wrap gap-2">
@@ -348,5 +357,6 @@
         window.posToppings = @json($posToppings);
         window.posProductToppings = @json($posProductToppings);
         window.posProductImages = @json($posProductImages);
+        window.promoValidateUrl = @json(route('promo.validate'));
     </script>
 @endpush

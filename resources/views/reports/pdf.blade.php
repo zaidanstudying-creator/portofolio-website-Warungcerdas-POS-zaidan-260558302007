@@ -137,11 +137,18 @@
         <p class="empty">Tidak ada transaksi pada periode ini.</p>
     @else
         <table>
-            <thead><tr><th style="width: 4%">No</th><th style="width: 26%">Nomor Transaksi</th><th>Waktu (WIB)</th><th>Jenis</th><th class="right">Total</th><th>Metode</th><th>Status</th></tr></thead>
+            <thead><tr><th style="width: 4%">No</th><th style="width: 24%">Nomor Transaksi</th><th>Waktu (WIB)</th><th>Jenis</th><th class="right">Total</th><th class="right">Promo</th><th>Metode</th><th>Status</th></tr></thead>
             <tbody>
                 @foreach ($transactions as $index => $order)
                     <tr>
                         <td class="center">{{ $index + 1 }}</td><td>{{ $order->order_number }}</td><td>{{ $order->created_at->timezone(\App\Services\OrderService::LOCAL_TIMEZONE)->format('d/m/Y H:i') }}</td><td>{{ $order->type->label() }}</td><td class="right"><x-money :value="$order->total" /></td>
+                        <td class="right">
+                            @if ((float) $order->promo_amount > 0)
+                                {{ $order->promo_code ? $order->promo_code.' · ' : '' }}−<x-money :value="$order->promo_amount" />
+                            @else
+                                —
+                            @endif
+                        </td>
                         <td>{{ match ($order->payment_method) { \App\Enums\PaymentMethod::Cash => 'Tunai', \App\Enums\PaymentMethod::Qris => 'QRIS', default => '—' } }}</td><td>{{ $order->payment_status->label() }}</td>
                     </tr>
                 @endforeach

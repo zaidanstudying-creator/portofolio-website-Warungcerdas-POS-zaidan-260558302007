@@ -36,6 +36,16 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('orders-status', function (Request $request) {
             return Limit::perMinute(30)->by('orders-status|'.$this->throttleUser($request));
         });
+
+        RateLimiter::for('promo-validate', function (Request $request) {
+            return Limit::perMinute(30)->by('promo-validate|'.$this->throttleUser($request));
+        });
+
+        RateLimiter::for('forgot-password', function (Request $request) {
+            $email = Str::lower((string) $request->input('email'));
+
+            return Limit::perMinute(3)->by($email.'|'.$request->ip());
+        });
     }
 
     /**

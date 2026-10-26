@@ -4,7 +4,9 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "node server.mjs",
+        "start": "node server.mjs",
+        "legacy:dev": "vite"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

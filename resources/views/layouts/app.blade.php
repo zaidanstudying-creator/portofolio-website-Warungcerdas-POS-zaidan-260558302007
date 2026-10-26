@@ -46,6 +46,12 @@
                     </svg>
                     <span>Dashboard</span>
                 </x-nav-link>
+                <x-nav-link :href="route('finance.index')" :active="request()->routeIs('finance.index')">
+                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
+                    <span>Keuangan</span>
+                </x-nav-link>
                 <x-nav-link :href="route('reports.index')" :active="request()->routeIs('reports.*')">
                     <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -55,6 +61,13 @@
                         <polyline points="10 9 9 9 8 9" />
                     </svg>
                     <span>Laporan</span>
+                </x-nav-link>
+                <x-nav-link :href="route('archive.index')" :active="request()->routeIs('archive.*')">
+                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z" />
+                        <polyline points="17 8 12 13 7 8" />
+                    </svg>
+                    <span>Arsip</span>
                 </x-nav-link>
                 <x-nav-link :href="route('settings.store-profile.edit')" :active="request()->routeIs('settings.store-profile*')">
                     <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -84,6 +97,13 @@
                         <circle cx="12" cy="12" r="9" /><path d="M12 7v10M7 12h10" />
                     </svg>
                     <span>Topping</span>
+                </x-nav-link>
+                <x-nav-link :href="route('promos.index')" :active="request()->routeIs('promos.*')">
+                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20.6 13.4 11 3.8A2 2 0 0 0 9.6 3H5a2 2 0 0 0-2 2v4.6a2 2 0 0 0 .6 1.4l9.6 9.6a2 2 0 0 0 2.8 0l4.6-4.6a2 2 0 0 0 0-2.6z" />
+                        <circle cx="7.5" cy="7.5" r="1.2" />
+                    </svg>
+                    <span>Promo</span>
                 </x-nav-link>
                 <x-nav-link :href="route('settings.qris.edit')" :active="request()->routeIs('settings.*')">
                     <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

@@ -76,6 +76,8 @@ function initPos() {
     let discountValue = 0;
     let feeLabel = '';
     let feeAmount = 0;
+    let promoCode = null;
+    let promoAmount = 0;
 
     const elements = {
         cartLines,
@@ -87,6 +89,12 @@ function initPos() {
         discountRow: document.getElementById('pos-discount-row'),
         discountLabel: document.getElementById('pos-discount-label'),
         discountAmount: document.getElementById('pos-discount-amount'),
+        promoRow: document.getElementById('pos-promo-row'),
+        promoLabel: document.getElementById('pos-promo-label'),
+        promoAmount: document.getElementById('pos-promo-amount'),
+        promoCode: document.getElementById('pos-promo-code'),
+        promoApply: document.getElementById('pos-promo-apply'),
+        promoFeedback: document.getElementById('pos-promo-feedback'),
         feeRow: document.getElementById('pos-fee-row'),
         feeLabel: document.getElementById('pos-fee-label'),
         feeAmount: document.getElementById('pos-fee-amount'),
@@ -128,6 +136,7 @@ function initPos() {
 
     const addToCart = (product, selectedToppings, quantity) => {
         checkoutToken = null;
+        clearPromo();
         const key = lineKey(product.id, selectedToppings);
         const existing = cart.get(key);
 
@@ -164,7 +173,13 @@ function initPos() {
 
     const cartSubtotal = () => [...cart.values()].reduce((sum, line) => sum + (line.basePrice + line.toppingPrice) * line.quantity, 0);
 
-    const resolvedDiscount = () => Math.min(cartSubtotal(), discountType === 'percentage' ? Math.round(cartSubtotal() * discountValue) / 100 : discountValue);
+    const subtotalAfterPromo = () => Math.max(0, cartSubtotal() - Math.min(promoAmount, cartSubtotal()));
+
+    const resolvedDiscount = () => {
+        const base = subtotalAfterPromo();
+
+        return Math.min(base, discountType === 'percentage' ? Math.round(base * discountValue) / 100 : discountValue);
+    };
 
     const renderCart = () => {
         const lines = [...cart.values()];
@@ -208,16 +223,21 @@ function initPos() {
         elements.subtotal.textContent = formatRupiah(baseTotal);
         elements.toppingTotal.textContent = formatRupiah(toppingTotal);
         const subtotal = baseTotal + toppingTotal;
-        if (discountType === 'fixed' && discountValue > subtotal) discountValue = subtotal;
+        const effectivePromo = Math.min(promoAmount, subtotal);
+        const promoBase = Math.max(0, subtotal - effectivePromo);
+        if (discountType === 'fixed' && discountValue > promoBase) discountValue = promoBase;
         if (subtotal === 0) { discountType = null; discountValue = 0; }
-        const discountAmount = discountType === 'percentage' ? Math.round(subtotal * discountValue) / 100 : Math.min(subtotal, discountValue);
+        const discountAmount = discountType === 'percentage' ? Math.round(promoBase * discountValue) / 100 : Math.min(promoBase, discountValue);
+        elements.promoRow.hidden = effectivePromo <= 0;
+        elements.promoLabel.textContent = promoCode ? `Promo ${promoCode}` : 'Promo';
+        elements.promoAmount.textContent = `− ${formatRupiah(effectivePromo)}`;
         elements.discountRow.hidden = discountAmount <= 0;
         elements.discountLabel.textContent = discountType === 'percentage' ? `Diskon (${discountValue}%)` : 'Diskon';
         elements.discountAmount.textContent = `− ${formatRupiah(discountAmount)}`;
         elements.feeRow.hidden = feeAmount <= 0;
         elements.feeLabel.textContent = feeLabel || 'Biaya tambahan';
         elements.feeAmount.textContent = formatRupiah(feeAmount);
-        elements.total.textContent = formatRupiah(subtotal - discountAmount + feeAmount);
+        elements.total.textContent = formatRupiah(promoBase - discountAmount + feeAmount);
         elements.cartEmpty.hidden = lines.length > 0;
         elements.checkout.disabled = lines.length === 0 || window.storeIsOpen === false;
         elements.checkout.dataset.cartEmpty = String(lines.length === 0);
@@ -231,6 +251,7 @@ function initPos() {
         }
 
         checkoutToken = null;
+        clearPromo();
         line.quantity = Math.min(99, line.quantity + delta);
 
         if (line.quantity < 1) {
@@ -366,6 +387,7 @@ function initPos() {
             changeQuantity(button.dataset.lineKey, -1);
         } else {
             checkoutToken = null;
+            clearPromo();
             cart.delete(button.dataset.lineKey);
             renderCart();
         }
@@ -375,6 +397,7 @@ function initPos() {
         checkoutToken = null;
         cart.clear();
         discountType = null; discountValue = 0; feeLabel = ''; feeAmount = 0;
+        clearPromo();
         renderCart();
     });
 
@@ -444,7 +467,7 @@ function initPos() {
         return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
     };
 
-    const cartTotal = () => Math.max(0, cartSubtotal() - resolvedDiscount() + feeAmount);
+    const cartTotal = () => Math.max(0, subtotalAfterPromo() - resolvedDiscount() + feeAmount);
 
     const toggleActive = (button, active) => {
         button.classList.toggle('border-emerald-600', active);
@@ -475,6 +498,29 @@ function initPos() {
     };
 
     const hideFeedback = () => feedback?.classList.add('hidden');
+
+    const showPromoFeedback = (message, isError) => {
+        if (!elements.promoFeedback) {
+            return;
+        }
+
+        elements.promoFeedback.textContent = message;
+        elements.promoFeedback.classList.remove('hidden', 'text-red-600', 'text-emerald-700');
+        elements.promoFeedback.classList.add(isError ? 'text-red-600' : 'text-emerald-700');
+    };
+
+    const hidePromoFeedback = () => elements.promoFeedback?.classList.add('hidden');
+
+    const clearPromo = () => {
+        promoCode = null;
+        promoAmount = 0;
+
+        if (elements.promoCode) {
+            elements.promoCode.value = '';
+        }
+
+        hidePromoFeedback();
+    };
 
     const updateTypeUi = () => {
         typeButtons.forEach((button) => toggleActive(button, button.dataset.type === checkoutState.type));
@@ -534,6 +580,7 @@ function initPos() {
             discount_value: discountValue,
             additional_fee_label: feeLabel,
             additional_fee_amount: feeAmount,
+            promo_code: promoCode,
             items: lines.map((line) => ({
                 product_id: line.productId,
                 quantity: line.quantity,
@@ -562,6 +609,89 @@ function initPos() {
 
         return data?.message ?? 'Pesanan gagal disimpan. Coba lagi.';
     };
+
+    const buildPromoItems = () => [...cart.values()].map((line) => ({
+        product_id: line.productId,
+        quantity: line.quantity,
+        toppings: line.toppings.map((t) => ({
+            id: t.id,
+            quantity: t.quantity,
+        })),
+    }));
+
+    const applyPromo = async () => {
+        const code = (elements.promoCode?.value ?? '').trim();
+
+        if (code === '') {
+            showPromoFeedback('Masukkan kode promo terlebih dahulu.', true);
+
+            return;
+        }
+
+        if (cart.size === 0) {
+            showPromoFeedback('Tambahkan item sebelum menerapkan promo.', true);
+
+            return;
+        }
+
+        const originalLabel = elements.promoApply?.textContent;
+
+        if (elements.promoApply) {
+            elements.promoApply.disabled = true;
+            elements.promoApply.textContent = 'Memeriksa...';
+        }
+
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]')?.content;
+            const response = await fetch(window.promoValidateUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': token,
+                },
+                body: JSON.stringify({ code, items: buildPromoItems() }),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                promoCode = null;
+                promoAmount = 0;
+                renderCart();
+                updateChange();
+                showPromoFeedback(firstErrorMessage(data), true);
+
+                return;
+            }
+
+            promoCode = data.promo_code;
+            promoAmount = Number(data.promo_amount) || 0;
+
+            if (elements.promoCode) {
+                elements.promoCode.value = promoCode;
+            }
+
+            checkoutToken = null;
+            renderCart();
+            updateChange();
+            showPromoFeedback(data.message ?? 'Promo diterapkan.', false);
+        } catch (error) {
+            showPromoFeedback('Tidak dapat menghubungi server. Periksa koneksi lalu coba lagi.', true);
+        } finally {
+            if (elements.promoApply) {
+                elements.promoApply.disabled = false;
+                elements.promoApply.textContent = originalLabel;
+            }
+        }
+    };
+
+    elements.promoApply?.addEventListener('click', applyPromo);
+    elements.promoCode?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            applyPromo();
+        }
+    });
 
     const submitOrder = async (errorElement, button) => {
         if (window.storeIsOpen === false) {
@@ -607,6 +737,7 @@ function initPos() {
 
             cart.clear();
             discountType = null; discountValue = 0; feeLabel = ''; feeAmount = 0;
+            clearPromo();
             renderCart();
             resetCheckout();
             closeCheckoutDialogs();
@@ -662,8 +793,8 @@ function initPos() {
     });
     document.querySelector('[data-discount-cancel]')?.addEventListener('click', () => discountDialog.close());
     document.querySelector('[data-discount-save]')?.addEventListener('click', () => {
-        const value = Number(discountValueInput.value); const type = discountTypeInput.value; const base = cartSubtotal();
-        if (!Number.isFinite(value) || value < 0 || (type === 'percentage' && value > 100) || (type === 'fixed' && value > base)) { discountError.textContent = 'Nilai diskon harus valid dan tidak boleh melebihi subtotal.'; discountError.hidden = false; return; }
+        const value = Number(discountValueInput.value); const type = discountTypeInput.value; const base = subtotalAfterPromo();
+        if (!Number.isFinite(value) || value < 0 || (type === 'percentage' && value > 100) || (type === 'fixed' && value > base)) { discountError.textContent = 'Nilai diskon harus valid dan tidak boleh melebihi subtotal setelah promo.'; discountError.hidden = false; return; }
         discountType = value === 0 ? null : type; discountValue = value; checkoutToken = null; renderCart(); updateChange(); discountDialog.close(); showFeedback('Diskon diperbarui.');
     });
     document.querySelector('[data-discount-remove]')?.addEventListener('click', () => { discountType = null; discountValue = 0; checkoutToken = null; renderCart(); updateChange(); discountDialog.close(); showFeedback('Diskon dihapus.'); });
@@ -846,6 +977,7 @@ function initPos() {
 initStoreOperation();
 initSidebar();
 initImagePreviews();
+initPasswordToggles();
 initPos();
 
 function initStoreOperation() {
@@ -969,5 +1101,27 @@ function initImagePreviews() {
         };
         input.addEventListener('change', syncPreview);
         document.querySelector('[name="remove_image"]')?.addEventListener('change', syncPreview);
+    });
+}
+
+function initPasswordToggles() {
+    document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+        const input = button.parentElement?.querySelector('[data-password-input]');
+
+        if (!input) {
+            return;
+        }
+
+        const baseLabel = input.id === 'password_confirmation'
+            ? 'konfirmasi kata sandi'
+            : 'kata sandi';
+
+        button.addEventListener('click', () => {
+            const isVisible = input.type === 'password';
+
+            input.type = isVisible ? 'text' : 'password';
+            button.setAttribute('aria-pressed', String(isVisible));
+            button.setAttribute('aria-label', `${isVisible ? 'Sembunyikan' : 'Tampilkan'} ${baseLabel}`);
+        });
     });
 }

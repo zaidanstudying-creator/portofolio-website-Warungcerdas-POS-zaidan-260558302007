@@ -100,6 +100,9 @@
                     <span class="text-slate-500">Subtotal</span>
                     <span><x-money :value="$order->subtotal" /></span>
                 </div>
+                @if ((float) $order->promo_amount > 0)
+                    <div class="flex justify-between gap-2"><span>Promo{{ $order->promo_code ? ' '.$order->promo_code : '' }}</span><span>− <x-money :value="$order->promo_amount" /></span></div>
+                @endif
                 @if ((float) $order->discount_amount > 0)
                     <div class="flex justify-between gap-2"><span>Diskon{{ $order->discount_type === 'percentage' ? ' ('.number_format((float) $order->discount_value, 2, ',', '.').'%)' : '' }}</span><span>− <x-money :value="$order->discount_amount" /></span></div>
                 @endif

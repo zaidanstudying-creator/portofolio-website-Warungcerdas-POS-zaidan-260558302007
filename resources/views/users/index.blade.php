@@ -43,8 +43,15 @@
                                 @endif
                             </td>
                             <td class="td">
-                                <div class="flex justify-end">
+                                <div class="flex justify-end gap-2">
                                     <a href="{{ route('users.edit', $user) }}" class="btn-ghost">Ubah</a>
+                                    @if (auth()->user()?->isAdmin() && !auth()->user()->is($user))
+                                    <form method="POST" action="{{ route('users.destroy', $user) }}" onsubmit="return confirm('Yakin ingin menghapus akun ini?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn-ghost text-red-600 hover:bg-red-50">Hapus</button>
+                                    </form>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

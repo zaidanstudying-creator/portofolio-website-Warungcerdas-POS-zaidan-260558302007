@@ -10,9 +10,11 @@ use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
+    'user_id',
     'order_number',
     'type',
     'status',
@@ -27,6 +29,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'discount_amount',
     'additional_fee_label',
     'additional_fee_amount',
+    'delivery_fee',
+    'platform_commission',
+    'promo_id',
+    'promo_amount',
+    'promo_code',
     'payment_method',
     'amount_paid',
     'change',
@@ -54,6 +61,9 @@ class Order extends Model
             'discount_value' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'additional_fee_amount' => 'decimal:2',
+            'delivery_fee' => 'decimal:2',
+            'platform_commission' => 'decimal:2',
+            'promo_amount' => 'decimal:2',
             'payment_method' => PaymentMethod::class,
             'amount_paid' => 'decimal:2',
             'change' => 'decimal:2',
@@ -66,5 +76,17 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /** @return BelongsTo<Promo, $this> */
+    public function promo(): BelongsTo
+    {
+        return $this->belongsTo(Promo::class);
     }
 }

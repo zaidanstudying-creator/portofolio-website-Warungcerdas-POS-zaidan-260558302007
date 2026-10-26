@@ -117,6 +117,18 @@
                             <dd class="text-right font-medium text-slate-800">{{ $order->delivery_address ?: '—' }}</dd>
                         </div>
                     @endif
+                    @if ((float) $order->promo_amount > 0)
+                        <div class="flex items-start justify-between gap-3">
+                            <dt class="text-slate-500">Promo{{ $order->promo_code ? ' '.$order->promo_code : '' }}</dt>
+                            <dd class="text-right font-medium text-red-700">− <x-money :value="$order->promo_amount" /></dd>
+                        </div>
+                    @endif
+                    @if ((float) $order->discount_amount > 0)
+                        <div class="flex items-start justify-between gap-3">
+                            <dt class="text-slate-500">Diskon{{ $order->discount_type === 'percentage' ? ' ('.number_format((float) $order->discount_value, 2, ',', '.').'%)' : '' }}</dt>
+                            <dd class="text-right font-medium text-red-700">− <x-money :value="$order->discount_amount" /></dd>
+                        </div>
+                    @endif
                     <div class="flex items-start justify-between gap-3">
                         <dt class="text-slate-500">Pembayaran</dt>
                         <dd class="text-right font-medium text-slate-800">

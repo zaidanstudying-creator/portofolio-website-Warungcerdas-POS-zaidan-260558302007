@@ -2,7 +2,10 @@
 
 use App\Models\Order;
 use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 
 test('guests can open the login page', function () {
     $this->get(route('login'))
@@ -10,6 +13,92 @@ test('guests can open the login page', function () {
         ->assertSee('Masuk')
         ->assertSee('Email')
         ->assertSee('Kata sandi');
+});
+
+test('guests can open the password recovery page', function () {
+    $this->get(route('password.request'))
+        ->assertOk()
+        ->assertSee('Lupa kata sandi?')
+        ->assertSee('Kirim tautan reset')
+        ->assertSee('name="email"', false)
+        ->assertSee('name="_token"', false);
+});
+
+test('a user can request a password reset link', function () {
+    $user = User::factory()->create(['email' => 'kasir@example.test']);
+    Notification::fake();
+
+    $this->from(route('password.request'))
+        ->post(route('password.email'), ['email' => $user->email])
+        ->assertRedirect(route('password.request'))
+        ->assertSessionHas('status', 'Jika email terdaftar, tautan reset password telah dikirim.');
+
+    Notification::assertSentTo($user, ResetPassword::class);
+});
+
+test('a password reset request for an unknown email uses the same response', function () {
+    Notification::fake();
+
+    $this->from(route('password.request'))
+        ->post(route('password.email'), ['email' => 'tidak-ada@example.test'])
+        ->assertRedirect(route('password.request'))
+        ->assertSessionHas('status', 'Jika email terdaftar, tautan reset password telah dikirim.');
+
+    Notification::assertNothingSent();
+});
+
+test('a user can reset their password with the emailed token', function () {
+    $user = User::factory()->create([
+        'email' => 'kasir@example.test',
+        'password' => 'rahasia-lama',
+    ]);
+    Notification::fake();
+
+    $this->post(route('password.email'), ['email' => $user->email]);
+
+    $token = null;
+    Notification::assertSentTo($user, ResetPassword::class, function (ResetPassword $notification) use (&$token): bool {
+        $token = $notification->token;
+
+        return $token !== '';
+    });
+
+    $this->get(route('password.reset', ['token' => $token, 'email' => $user->email]))
+        ->assertOk()
+        ->assertSee('Kata sandi baru')
+        ->assertSee('Konfirmasi kata sandi')
+        ->assertSee('name="email"', false)
+        ->assertSee('value="'.$token.'"', false);
+
+    $this->post(route('password.update'), [
+        'token' => $token,
+        'email' => $user->email,
+        'password' => 'rahasia-baru-123',
+        'password_confirmation' => 'rahasia-baru-123',
+    ])
+        ->assertRedirect(route('login'))
+        ->assertSessionHas('success', 'Kata sandi berhasil direset. Silakan login.');
+
+    expect(Hash::check('rahasia-baru-123', $user->refresh()->password))->toBeTrue();
+});
+
+test('an invalid password reset token does not change the password', function () {
+    $user = User::factory()->create([
+        'email' => 'kasir@example.test',
+        'password' => 'rahasia-lama',
+    ]);
+
+    $this->from(route('password.reset', ['token' => 'token-tidak-valid', 'email' => $user->email]))
+        ->post(route('password.update'), [
+            'token' => 'token-tidak-valid',
+            'email' => $user->email,
+            'password' => 'rahasia-baru-123',
+            'password_confirmation' => 'rahasia-baru-123',
+        ])
+        ->assertRedirect(route('password.reset', ['token' => 'token-tidak-valid', 'email' => $user->email]))
+        ->assertSessionHasErrors('email');
+
+    expect(Hash::check('rahasia-lama', $user->refresh()->password))->toBeTrue();
 });
 
 test('a user can log in with valid credentials', function () {

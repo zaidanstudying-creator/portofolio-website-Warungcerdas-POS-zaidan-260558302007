@@ -59,13 +59,13 @@ test('closing blocks completion while keeping history receipts and cancellation 
 test('welcome and cashier read the persisted status across requests', function () {
     $this->actingAs(User::factory()->admin()->create());
     $this->putJson(route('settings.store-profile.close'))->assertOk()->assertJsonPath('status', 'closed');
-    $this->get('/')->assertOk()->assertSee('TOKO TUTUP')->assertSee('Kasir Sedang Tutup');
+    $this->get(route('welcome'))->assertOk()->assertSee('TOKO TUTUP')->assertSee('Kasir Sedang Tutup');
     $this->get(route('pos.index'))->assertOk()->assertSee('TOKO TUTUP')->assertSee('TOKO SEDANG TUTUP');
     $this->post(route('logout'));
     $cashier = User::factory()->kasir()->create();
-    $this->post(route('login.store'), ['email' => $cashier->email, 'password' => 'password'])->assertRedirect('/');
+    $this->post(route('login.store'), ['email' => $cashier->email, 'password' => 'password'])->assertRedirect(route('welcome'));
     $this->getJson(route('store.status'))->assertOk()->assertJsonPath('status', 'closed')->assertHeader('Cache-Control', 'no-store, private');
-    $this->get('/')->assertOk()->assertSee('Kasir Sedang Tutup')->assertDontSee('data-store-action', false);
+    $this->get(route('welcome'))->assertOk()->assertSee('Kasir Sedang Tutup')->assertDontSee('data-store-action', false);
 });
 
 test('a completed checkout replay is rejected when the store has since closed', function () {

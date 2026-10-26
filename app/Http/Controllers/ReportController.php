@@ -60,6 +60,9 @@ class ReportController extends Controller
         // Payment method analysis
         $paymentAnalysis = $this->getPaymentAnalysis($resolvedStart, $resolvedEnd, $request->query('payment_method'));
 
+        // Order type analysis (Dine In, Takeaway, Delivery)
+        $orderTypeAnalysis = $this->getOrderTypeAnalysis($resolvedStart, $resolvedEnd, $request->query('payment_method'));
+
         // Transaction history with pagination
         $transactions = Order::query()
             ->where('payment_status', PaymentStatus::Paid)
@@ -96,6 +99,7 @@ class ReportController extends Controller
             'productSales',
             'toppingSales',
             'paymentAnalysis',
+            'orderTypeAnalysis',
             'transactions'
         ));
     }
@@ -130,6 +134,8 @@ class ReportController extends Controller
                 'Waktu',
                 'Tipe Pesanan',
                 'Total',
+                'Kode Promo',
+                'Nominal Promo',
                 'Metode Pembayaran',
                 'Status Pembayaran',
             ]);
@@ -150,6 +156,8 @@ class ReportController extends Controller
                     $order->created_at->timezone(OrderService::LOCAL_TIMEZONE)->format('d/m/Y H:i'),
                     $order->type->label() ?? $order->type->value,
                     $order->total,
+                    $order->promo_code ?? '',
+                    $order->promo_amount,
                     $order->payment_method?->value ?? '-',
                     $order->payment_status->label() ?? $order->payment_status->value,
                 ]);
@@ -469,6 +477,98 @@ class ReportController extends Controller
                 'percentage' => $totalPayment > 0 ? round(($qrisTotal / $totalPayment) * 100, 1) : 0,
             ],
             'total_transactions' => $totalCount,
+        ];
+    }
+
+    /**
+     * Get order type analysis (Dine In, Takeaway, Delivery)
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function getOrderTypeAnalysis(Carbon $startDate, Carbon $endDate, ?string $paymentMethod = null): array
+    {
+        $types = ['DI' => 'Dine In', 'TA' => 'Takeaway', 'DLV' => 'Delivery'];
+        $analysis = [];
+
+        foreach ($types as $typeCode => $typeLabel) {
+            $query = Order::query()
+                ->where('payment_status', PaymentStatus::Paid)
+                ->where('status', '!=', OrderStatus::Cancelled)
+                ->where('type', $typeCode)
+                ->whereBetween('created_at', [$startDate->copy()->setTimezone(config('app.timezone')), $endDate->copy()->setTimezone(config('app.timezone'))])
+                ->when($paymentMethod, fn ($q) => $q->where('payment_method', $paymentMethod));
+
+            $totalRevenue = (float) $query->sum('total');
+            $totalOrders = (int) $query->count();
+            $avgOrderValue = $totalOrders > 0 ? $totalRevenue / $totalOrders : 0;
+
+            // HPP for this type
+            $hppData = $this->calculateHppByType($startDate, $endDate, $typeCode, $paymentMethod);
+            $totalHpp = $hppData['total_hpp'];
+
+            $grossProfit = $totalRevenue - $totalHpp;
+            $grossMargin = $totalRevenue > 0 ? ($grossProfit / $totalRevenue) * 100 : 0;
+
+            $analysis[$typeCode] = [
+                'label' => $typeLabel,
+                'total_orders' => $totalOrders,
+                'total_revenue' => $totalRevenue,
+                'avg_order_value' => $avgOrderValue,
+                'total_hpp' => $totalHpp,
+                'gross_profit' => $grossProfit,
+                'gross_margin' => $grossMargin,
+            ];
+        }
+
+        // Calculate totals for percentage
+        $grandTotalRevenue = array_sum(array_column($analysis, 'total_revenue'));
+        foreach ($analysis as $typeCode => &$data) {
+            $data['percentage'] = $grandTotalRevenue > 0 ? round(($data['total_revenue'] / $grandTotalRevenue) * 100, 1) : 0;
+        }
+
+        return $analysis;
+    }
+
+    /**
+     * Calculate HPP for a specific order type
+     */
+    private function calculateHppByType(Carbon $startDate, Carbon $endDate, string $typeCode, ?string $paymentMethod = null): array
+    {
+        $orderItems = OrderItem::query()
+            ->whereHas('order', function ($query) use ($startDate, $endDate, $typeCode, $paymentMethod) {
+                $query->where('payment_status', PaymentStatus::Paid)
+                    ->where('status', '!=', OrderStatus::Cancelled)
+                    ->where('type', $typeCode)
+                    ->whereBetween('created_at', [$startDate->copy()->setTimezone(config('app.timezone')), $endDate->copy()->setTimezone(config('app.timezone'))])
+                    ->when($paymentMethod, function ($q) use ($paymentMethod) {
+                        $q->where('payment_method', $paymentMethod);
+                    });
+            })
+            ->with(['toppings'])
+            ->get();
+
+        $productHpp = 0.0;
+        $toppingHpp = 0.0;
+
+        foreach ($orderItems as $item) {
+            $quantity = $item->quantity;
+
+            if ($item->hpp !== null) {
+                $productHpp += (float) $item->hpp * $quantity;
+            }
+
+            foreach ($item->toppings as $topping) {
+                $toppingQty = $topping->quantity * $quantity;
+                if ($topping->hpp !== null) {
+                    $toppingHpp += (float) $topping->hpp * $toppingQty;
+                }
+            }
+        }
+
+        return [
+            'total_hpp' => $productHpp + $toppingHpp,
+            'product_hpp' => $productHpp,
+            'topping_hpp' => $toppingHpp,
         ];
     }
 }
