@@ -51,3 +51,33 @@ test('create-admin command is guarded when admin exists', function () {
         ->expectsConfirmation('Tetap lanjut membuat akun admin baru?', 'no')
         ->assertExitCode(0);
 });
+
+test('create-admin command cannot promote the super admin account', function () {
+    $superAdmin = User::factory()->superAdmin()->create();
+
+    $this->artisan('app:create-admin', ['--promote' => $superAdmin->email])
+        ->assertExitCode(1);
+
+    expect($superAdmin->refresh()->isSuperAdmin())->toBeTrue();
+});
+
+test('super admin cannot be created by ordinary registration routes', function () {
+    $this->get('/register')->assertNotFound();
+    $this->post('/register', [
+        'name' => 'Super Admin',
+        'email' => 'super@example.test',
+        'role' => UserRole::AdministratorUtama->value,
+    ])->assertNotFound();
+
+    expect(User::whereNotNull('super_admin_key')->count())->toBe(0);
+});
+
+test('super admin setup and recovery refuse non-interactive invocation', function () {
+    $this->artisan('app:create-super-admin', ['--no-interaction' => true])
+        ->assertExitCode(1);
+
+    $this->artisan('app:recover-super-admin', ['--no-interaction' => true])
+        ->assertExitCode(1);
+
+    expect(User::whereNotNull('super_admin_key')->count())->toBe(0);
+});

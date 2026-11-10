@@ -22,6 +22,14 @@ class EnsureUserHasRole
             abort(401);
         }
 
+        if (($user->hasSuperAdminMarker() || $user->role === UserRole::AdministratorUtama) && ! $user->isSuperAdmin()) {
+            abort(403);
+        }
+
+        if ($user->isSuperAdmin() && ! in_array(UserRole::AdministratorUtama->value, $roles, true)) {
+            abort(403);
+        }
+
         $userRole = $user->role;
 
         if ($userRole instanceof UserRole) {

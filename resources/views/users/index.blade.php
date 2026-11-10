@@ -6,7 +6,7 @@
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
             <h2 class="text-lg font-semibold text-slate-900">Manajemen Akun</h2>
-            <p class="text-sm text-slate-500">Kelola akun Admin dan Kasir. Akun tidak dihapus agar riwayat pesanan tetap utuh.</p>
+            <p class="text-sm text-slate-500">Kelola akun Admin Toko dan Kasir, termasuk mengatur password baru secara langsung.</p>
         </div>
         <a href="{{ route('users.create') }}" class="btn-primary">+ Tambah Akun</a>
     </div>
@@ -29,7 +29,9 @@
                             <td class="td font-medium text-slate-900">{{ $user->name }}</td>
                             <td class="td text-slate-600">{{ $user->email }}</td>
                             <td class="td">
-                                @if ($user->isAdmin())
+                                @if ($user->hasSuperAdminMarker())
+                                    <span class="badge-slate">Administrator Utama</span>
+                                @elseif ($user->isAdmin())
                                     <span class="badge-green">Admin</span>
                                 @else
                                     <span class="badge-slate">Kasir</span>
@@ -44,8 +46,10 @@
                             </td>
                             <td class="td">
                                 <div class="flex justify-end gap-2">
+                                    @unless ($user->hasSuperAdminMarker())
                                     <a href="{{ route('users.edit', $user) }}" class="btn-ghost">Ubah</a>
-                                    @if (auth()->user()?->isAdmin() && !auth()->user()->is($user))
+                                    @endunless
+                                    @if (auth()->user()?->isAdmin() && !auth()->user()->is($user) && !$user->hasSuperAdminMarker())
                                     <form method="POST" action="{{ route('users.destroy', $user) }}" onsubmit="return confirm('Yakin ingin menghapus akun ini?')">
                                         @csrf
                                         @method('DELETE')

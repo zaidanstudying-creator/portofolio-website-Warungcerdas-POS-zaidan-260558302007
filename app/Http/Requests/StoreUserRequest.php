@@ -28,8 +28,8 @@ class StoreUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
-            'role' => ['required', Rule::enum(UserRole::class)],
-            'password' => ['required', 'confirmed', Password::min(12)->letters()->numbers()],
+            'role' => ['required', Rule::in([UserRole::Admin->value, UserRole::Kasir->value])],
+            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }
@@ -49,7 +49,7 @@ class StoreUserRequest extends FormRequest
             'email.unique' => 'Email sudah digunakan, pilih email lain.',
             'email.max' => 'Email maksimal 255 karakter.',
             'role.required' => 'Peran wajib dipilih.',
-            'role.enum' => 'Peran tidak dikenali.',
+            'role.in' => 'Peran tidak dikenali.',
             'password.required' => 'Kata sandi wajib diisi.',
             'password.confirmed' => 'Konfirmasi kata sandi tidak cocok.',
             'password.min' => 'Kata sandi minimal :min karakter.',

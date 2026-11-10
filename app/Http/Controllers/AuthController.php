@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\ResetPasswordRequest;
+use App\Http\Requests\UpdateOwnPasswordRequest;
+use App\Models\ActivityLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -46,6 +48,10 @@ class AuthController extends Controller
         RateLimiter::clear($this->throttleKey($request));
 
         $request->session()->regenerate();
+
+        if ($request->user()->isSuperAdmin()) {
+            return redirect()->route('users.index');
+        }
 
         return redirect()->route('welcome');
     }
@@ -111,10 +117,22 @@ class AuthController extends Controller
     {
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user, $password) {
+            function ($user, $password) use ($request): void {
                 $user->forceFill([
                     'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
                 ])->save();
+
+                ActivityLog::create([
+                    'log_name' => 'user_management',
+                    'description' => "User password reset completed: {$user->email}",
+                    'subject_type' => get_class($user),
+                    'subject_id' => $user->getKey(),
+                    'event' => 'password_reset_completed',
+                    'properties' => ['email' => $user->email],
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]);
             }
         );
 
@@ -125,6 +143,31 @@ class AuthController extends Controller
         throw ValidationException::withMessages([
             'email' => 'Token reset password tidak valid atau telah kedaluwarsa.',
         ]);
+    }
+
+    public function updateOwnPassword(UpdateOwnPasswordRequest $request): RedirectResponse
+    {
+        $user = $request->user();
+        $user->forceFill([
+            'password' => $request->validated('password'),
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        $request->session()->regenerate();
+
+        ActivityLog::create([
+            'log_name' => 'user_management',
+            'description' => "User changed their own password: {$user->email}",
+            'subject_type' => get_class($user),
+            'subject_id' => $user->getKey(),
+            'causer_type' => get_class($user),
+            'causer_id' => $user->getKey(),
+            'event' => 'own_password_changed',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return back()->with('success', 'Password Anda berhasil diubah.');
     }
 
     private function throttleKey(Request $request): string

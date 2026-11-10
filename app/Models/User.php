@@ -38,6 +38,16 @@ class User extends Authenticatable
         return $this->role === UserRole::Admin;
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === UserRole::AdministratorUtama && $this->hasSuperAdminMarker();
+    }
+
+    public function hasSuperAdminMarker(): bool
+    {
+        return $this->super_admin_key === 'primary';
+    }
+
     public function isKasir(): bool
     {
         return $this->role === UserRole::Kasir;

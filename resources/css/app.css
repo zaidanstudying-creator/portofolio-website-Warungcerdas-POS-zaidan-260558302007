@@ -102,17 +102,17 @@
 
 @layer components {
     .auth-body {
-        @apply min-h-svh overflow-x-hidden bg-slate-100 px-4 py-4 font-sans text-slate-800 antialiased sm:px-6 sm:py-6;
-        background-image: radial-gradient(ellipse at 78% 14%, rgb(16 185 129 / 13%), transparent 34%), radial-gradient(ellipse at 12% 85%, rgb(20 184 166 / 11%), transparent 38%);
+        @apply min-h-svh overflow-x-hidden bg-[#f3f1e9] px-4 py-4 font-sans text-slate-800 antialiased sm:px-6 sm:py-6;
+        background-image: radial-gradient(ellipse at 82% 10%, rgb(228 169 91 / 18%), transparent 32%), radial-gradient(ellipse at 8% 88%, rgb(49 112 77 / 12%), transparent 38%);
     }
 
     .auth-shell {
-        @apply relative mx-auto grid min-h-[min(820px,calc(100svh-3rem))] w-full max-w-[1240px] overflow-hidden rounded-[28px] bg-white shadow-[0_28px_90px_-42px_rgba(22,54,85,0.36)] ring-1 ring-slate-900/5;
-        grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        @apply relative mx-auto grid min-h-[min(820px,calc(100svh-3rem))] w-full max-w-[1240px] overflow-hidden rounded-[30px] bg-[#fffdf8] shadow-[0_30px_90px_-45px_rgba(35,67,46,0.38)] ring-1 ring-[#254d36]/10;
+        grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
     }
 
     .auth-form-panel {
-        @apply flex min-w-0 items-center justify-center bg-white px-6 py-10 sm:px-10 lg:px-14;
+        @apply flex min-w-0 items-center justify-center bg-[#fffdf8] px-6 py-10 sm:px-10 lg:px-14;
     }
 
     .auth-form-wrap {
@@ -128,7 +128,7 @@
     }
 
     .auth-card-kicker {
-        @apply mb-2 text-xs font-bold uppercase tracking-[0.16em] text-emerald-700;
+        @apply mb-2 text-xs font-bold uppercase tracking-[0.16em] text-[#39734d];
     }
 
     .auth-card-heading h1 {
@@ -165,7 +165,7 @@
 
     .auth-inline-link,
     .auth-back-link {
-        @apply text-sm font-semibold text-emerald-700 underline-offset-4 hover:text-emerald-900 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700;
+        @apply text-sm font-semibold text-[#39734d] underline-offset-4 hover:text-[#214d34] hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-700;
     }
 
     .auth-back-link {
@@ -193,7 +193,7 @@
     }
 
     .auth-submit {
-        @apply mt-2 min-h-12 w-full rounded-xl bg-emerald-700 px-5 text-[15px] font-semibold shadow-sm shadow-emerald-950/15 hover:bg-emerald-800 focus-visible:ring-emerald-700/30;
+        @apply mt-2 min-h-12 w-full rounded-xl bg-[#285d3d] px-5 text-[15px] font-semibold shadow-sm shadow-emerald-950/15 hover:bg-[#1e4b31] focus-visible:ring-emerald-700/30;
     }
 
     .auth-alert {
@@ -213,32 +213,28 @@
     }
 
     .auth-footnote {
-        @apply mt-10 text-center text-xs text-slate-400;
+        @apply mt-10 text-center text-xs text-slate-500;
     }
 
     .auth-footnote span {
         @apply mx-1 text-orange-500;
     }
 
-    .auth-mobile-wordmark {
-        @apply mb-8 hidden items-center gap-2 text-sm font-bold tracking-tight text-slate-900;
-    }
-
-    .auth-mobile-wordmark strong {
-        @apply ml-1 rounded bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-orange-800;
+    .auth-monogram {
+        @apply grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#285d3d] text-sm font-extrabold text-[#fff8e9] shadow-sm;
     }
 
     .auth-brand-panel {
-        @apply relative isolate flex min-h-full flex-col overflow-hidden bg-[#123f6b] px-8 py-8 text-white sm:px-10 sm:py-10 lg:px-14 lg:py-12;
-        background-image: linear-gradient(145deg, #164c7d 0%, #123f6b 56%, #0e355c 100%);
+        @apply relative isolate flex min-h-full flex-col overflow-hidden bg-[#244f37] px-8 py-8 text-white sm:px-10 sm:py-10 lg:px-14 lg:py-12;
+        background-image: linear-gradient(145deg, #315f43 0%, #244f37 56%, #1c412e 100%);
     }
 
     .auth-brand-panel::before {
         content: "";
         @apply pointer-events-none absolute inset-0 -z-10 opacity-20;
-        background-image: radial-gradient(#d7e8f5 0.7px, transparent 0.7px);
-        background-size: 19px 19px;
-        mask-image: linear-gradient(125deg, #000, transparent 72%);
+        background-image: radial-gradient(#f4e7cc 0.7px, transparent 0.7px);
+        background-size: 21px 21px;
+        mask-image: linear-gradient(125deg, #000, transparent 70%);
     }
 
     .auth-brand-glow {
@@ -246,19 +242,19 @@
     }
 
     .auth-brand-glow-one {
-        @apply -right-20 top-20 h-64 w-64 bg-orange-400/20;
+        @apply -right-20 top-20 h-64 w-64 bg-amber-300/20;
     }
 
     .auth-brand-glow-two {
-        @apply -bottom-24 -left-16 h-72 w-72 bg-sky-300/15;
+        @apply -bottom-24 -left-16 h-72 w-72 bg-emerald-300/15;
     }
 
     .auth-wordmark {
-        @apply inline-flex w-fit items-center gap-2 text-lg font-semibold tracking-tight text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-300;
+        @apply inline-flex w-fit items-center gap-2.5 text-lg font-semibold tracking-tight text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300;
     }
 
     .auth-wordmark-badge {
-        @apply rounded-md bg-orange-400 px-2 py-1 text-[10px] font-extrabold tracking-[0.13em] text-[#153c60];
+        @apply rounded-md bg-[#edb96f] px-2 py-1 text-[10px] font-extrabold tracking-[0.13em] text-[#28452f];
     }
 
     .auth-brand-copy {
@@ -266,12 +262,12 @@
     }
 
     .auth-eyebrow {
-        @apply mb-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.17em] text-blue-100/80;
+        @apply mb-5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.17em] text-[#e3ebd9]/80;
     }
 
     .auth-eyebrow span,
     .auth-footer-dot {
-        @apply h-2 w-2 rounded-full bg-orange-400;
+        @apply h-2 w-2 rounded-full bg-[#edb96f];
     }
 
     .auth-brand-copy h1 {
@@ -279,11 +275,11 @@
     }
 
     .auth-brand-copy h1 em {
-        @apply font-medium not-italic text-[#ffc477];
+        @apply font-medium not-italic text-[#edbd78];
     }
 
     .auth-brand-copy > p:last-child {
-        @apply mt-5 max-w-[390px] text-sm leading-6 text-blue-100/80 sm:text-base sm:leading-7;
+        @apply mt-5 max-w-[390px] text-sm leading-6 text-[#e3ebd9]/85 sm:text-base sm:leading-7;
     }
 
     .auth-illustration {
@@ -295,7 +291,7 @@
     }
 
     .auth-brand-footer {
-        @apply relative z-10 mt-3 flex items-center gap-2.5 text-xs font-medium tracking-wide text-blue-100/75;
+        @apply relative z-10 mt-3 flex items-center gap-2.5 text-xs font-medium tracking-wide text-[#e3ebd9]/75;
     }
 
     .auth-footer-dot {
@@ -324,10 +320,6 @@
         @apply max-w-[460px];
     }
 
-    .auth-mobile-wordmark {
-        @apply flex;
-    }
-
     .auth-card-heading {
         @apply mb-6;
     }
@@ -342,7 +334,7 @@
 
     .auth-brand-panel {
         grid-area: brand;
-        @apply min-h-0 rounded-b-none px-5 pb-8 pt-6 sm:px-8;
+        @apply min-h-0 rounded-b-none px-5 pb-7 pt-6 sm:px-8;
     }
 
     .auth-wordmark {
@@ -365,9 +357,12 @@
         @apply mt-2 max-w-lg text-sm leading-5;
     }
 
-    .auth-illustration,
     .auth-brand-footer {
         @apply hidden;
+    }
+
+    .auth-illustration {
+        @apply mt-4 ml-auto mr-auto w-[min(72vw,260px)] pt-0;
     }
 }
 

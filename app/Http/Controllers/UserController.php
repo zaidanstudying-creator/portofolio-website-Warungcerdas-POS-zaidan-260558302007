@@ -10,7 +10,7 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -54,11 +54,17 @@ class UserController extends Controller
             'is_active' => $user->is_active,
         ]);
 
+        $this->logActivity($request->user(), 'password_set_by_admin', $user, [
+            'method' => 'account_creation',
+        ]);
+
         return redirect()->route('users.index')->with('success', 'Akun berhasil dibuat.');
     }
 
     public function edit(User $user): View
     {
+        abort_if($user->hasSuperAdminMarker(), 403);
+
         return view('users.form', compact('user'));
     }
 
@@ -67,6 +73,9 @@ class UserController extends Controller
         $data = $request->validated();
         $newRole = UserRole::from($data['role']);
         $actor = $request->user();
+        $passwordChanged = filled($data['password'] ?? null);
+
+        abort_if($user->hasSuperAdminMarker(), 403);
 
         $oldData = [
             'name' => $user->name,
@@ -75,8 +84,10 @@ class UserController extends Controller
             'is_active' => $user->is_active,
         ];
 
-        DB::transaction(function () use ($actor, $user, $data, $newRole): void {
+        DB::transaction(function () use ($actor, $user, $data, $newRole, $passwordChanged): void {
             $locked = $this->lockForUpdateById($user->getKey());
+
+            abort_if($locked->hasSuperAdminMarker(), 403);
 
             $newActive = array_key_exists('is_active', $data) ? (bool) $data['is_active'] : $locked->isActive();
 
@@ -85,8 +96,9 @@ class UserController extends Controller
             $locked->name = $data['name'];
             $locked->email = strtolower($data['email']);
 
-            if (! empty($data['password'])) {
-                $locked->password = Hash::make($data['password']);
+            if ($passwordChanged) {
+                $locked->password = $data['password'];
+                $locked->setRememberToken(Str::random(60));
             }
 
             $locked->forceFill([
@@ -110,7 +122,17 @@ class UserController extends Controller
             'new' => $newData,
         ]);
 
-        return redirect()->route('users.index')->with('success', 'Akun berhasil diperbarui.');
+        if ($passwordChanged) {
+            $this->logActivity($actor, 'password_reset_by_admin', $user, [
+                'method' => 'account_edit',
+            ]);
+        }
+
+        $message = $passwordChanged
+            ? 'Akun berhasil diperbarui dan password baru disimpan.'
+            : 'Akun berhasil diperbarui.';
+
+        return redirect()->route('users.index')->with('success', $message);
     }
 
     private function logActivity(User $actor, string $event, User $subject, array $properties): void
@@ -197,8 +219,13 @@ class UserController extends Controller
     {
         $actor = $request->user();
 
+        abort_unless($actor->isAdmin(), 403);
+        abort_if($user->hasSuperAdminMarker(), 403);
+
         DB::transaction(function () use ($actor, $user): void {
             $locked = $this->lockForUpdateById($user->getKey());
+
+            abort_if($locked->hasSuperAdminMarker(), 403);
 
             if ($actor->is($locked)) {
                 throw ValidationException::withMessages([

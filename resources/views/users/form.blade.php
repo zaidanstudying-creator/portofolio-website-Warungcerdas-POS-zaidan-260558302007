@@ -50,8 +50,9 @@
             <label for="role" class="label">Peran</label>
             <select id="role" name="role" class="input" required>
                 @foreach (\App\Enums\UserRole::cases() as $role)
+                    @continue($role === \App\Enums\UserRole::AdministratorUtama)
                     <option value="{{ $role->value }}" @selected(old('role', $user->role?->value ?? \App\Enums\UserRole::Kasir->value) === $role->value)>
-                        {{ $role === \App\Enums\UserRole::Admin ? 'Admin' : 'Kasir' }}
+                        {{ $role === \App\Enums\UserRole::Admin ? 'Admin Toko' : 'Kasir' }}
                     </option>
                 @endforeach
             </select>
@@ -62,24 +63,24 @@
 
         <div>
             <label for="password" class="label">
-                Kata sandi {{ isset($user) ? '(kosongkan jika tidak diubah)' : '' }}
+                {{ isset($user) ? 'Password baru (opsional)' : 'Password awal' }}
             </label>
             <input
                 id="password"
                 type="password"
                 name="password"
                 class="input"
-                placeholder="Minimal 12 karakter, kombinasi huruf dan angka"
                 autocomplete="new-password"
                 @unless (isset($user)) required @endunless
             >
+            <p class="mt-1 text-sm text-slate-500">Minimal 8 karakter, mengandung huruf dan angka. @if (isset($user)) Kosongkan jika tidak ingin mengubah password. @endif</p>
             @error('password')
                 <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
             @enderror
         </div>
 
         <div>
-            <label for="password_confirmation" class="label">Konfirmasi kata sandi</label>
+            <label for="password_confirmation" class="label">Konfirmasi password {{ isset($user) ? 'baru' : '' }}</label>
             <input
                 id="password_confirmation"
                 type="password"
@@ -88,6 +89,9 @@
                 autocomplete="new-password"
                 @unless (isset($user)) required @endunless
             >
+            @error('password_confirmation')
+                <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
+            @enderror
         </div>
 
         <x-checkbox

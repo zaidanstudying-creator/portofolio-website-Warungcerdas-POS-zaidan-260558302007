@@ -11,14 +11,13 @@
     <main class="auth-shell">
         <section class="auth-form-panel" aria-labelledby="auth-page-title">
             <div class="auth-form-wrap">
-                <a class="auth-mobile-wordmark" href="{{ route('login') }}" aria-label="WarungCerdas POS">
-                    <span>WarungCerdas</span>
-                    <span class="auth-wordmark-badge">POS</span>
-                </a>
-
                 @yield('content')
 
-                <p class="auth-footnote">WarungCerdas POS <span aria-hidden="true">·</span> Operasional kasir harian</p>
+                <p class="auth-footnote">{{ \App\Http\Controllers\SettingController::storeName() }} <span aria-hidden="true">·</span> Operasional kasir harian</p>
+                <p class="mt-2 text-center text-xs text-slate-500">
+                    Butuh bantuan? Hubungi Zaidan
+                    <a href="tel:+6285158512007" class="font-semibold text-[#39734d] underline-offset-4 hover:underline">085158512007</a>
+                </p>
             </div>
         </section>
 
@@ -27,40 +26,45 @@
             <div class="auth-brand-glow auth-brand-glow-two" aria-hidden="true"></div>
 
             <a class="auth-wordmark" href="{{ route('login') }}" aria-label="WarungCerdas POS">
-                <span>WarungCerdas</span>
+                <span class="auth-monogram" aria-hidden="true">{{ mb_substr(\App\Http\Controllers\SettingController::storeName(), 0, 1) }}</span>
+                <span>{{ \App\Http\Controllers\SettingController::storeName() }}</span>
                 <span class="auth-wordmark-badge">POS</span>
             </a>
 
             <div class="auth-brand-copy">
-                <p class="auth-eyebrow"><span aria-hidden="true"></span> Teman usaha kuliner</p>
-                <h1 id="auth-brand-title">Sibuk melayani,<br><em>tetap teratur.</em></h1>
-                <p>Kelola pesanan dan transaksi kasir dengan lebih nyaman, agar fokus tetap pada pelanggan.</p>
+                <p class="auth-eyebrow"><span aria-hidden="true"></span> Kasir dan operasional dalam satu tempat</p>
+                <h1 id="auth-brand-title">Jualan lancar,<br>warung <em>lebih rapi.</em></h1>
+                <p>Bantu pelayanan tetap hangat, sementara transaksi dan pesanan tercatat dengan teratur.</p>
             </div>
 
             <div class="auth-illustration" aria-hidden="true">
                 <svg viewBox="0 0 520 330" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <ellipse cx="260" cy="282" rx="205" ry="22" fill="#0B2E57" fill-opacity=".16"/>
-                    <path d="M92 180c0 82 66 148 148 148s148-66 148-148H92Z" fill="#F7FAFC"/>
-                    <path d="M92 180c0 82 66 148 148 148s148-66 148-148H92Z" stroke="#D7E7F3" stroke-width="4"/>
-                    <ellipse cx="240" cy="179" rx="148" ry="46" fill="#E9F1F7"/>
-                    <ellipse cx="240" cy="173" rx="128" ry="35" fill="#FFFDF8"/>
-                    <path d="M157 174c18-20 47-20 65 0 18 20 47 20 65 0 18-20 46-20 64 0" stroke="#E99A32" stroke-width="9" stroke-linecap="round"/>
-                    <path d="M180 157c12-11 28-12 39-2m31 35c12-11 28-12 39-2m21-31c9-8 20-9 29-3" stroke="#E9B54A" stroke-width="6" stroke-linecap="round"/>
-                    <circle cx="188" cy="177" r="8" fill="#E86E43"/><circle cx="286" cy="159" r="7" fill="#E86E43"/><circle cx="326" cy="184" r="8" fill="#E86E43"/>
-                    <path d="M363 72h83a16 16 0 0 1 16 16v109a16 16 0 0 1-16 16h-83a16 16 0 0 1-16-16V88a16 16 0 0 1 16-16Z" fill="#F7FAFC"/>
-                    <path d="M374 106h60m-60 22h44m-44 22h54" stroke="#B8CCDD" stroke-width="7" stroke-linecap="round"/>
-                    <path d="M374 177h27" stroke="#E89537" stroke-width="9" stroke-linecap="round"/>
-                    <path d="M360 72v-9a17 17 0 0 1 17-17h55a17 17 0 0 1 17 17v9" stroke="#D7E7F3" stroke-width="4"/>
-                    <path d="M102 117c0-13 10-23 23-23s23 10 23 23-10 23-23 23-23-10-23-23Z" fill="#F3A343" fill-opacity=".9"/>
-                    <path d="M110 117h30m-15-15v30" stroke="#FFF7E8" stroke-width="4" stroke-linecap="round"/>
-                    <path d="M422 246c0-10 8-18 18-18s18 8 18 18-8 18-18 18-18-8-18-18Z" fill="#E86E43" fill-opacity=".9"/>
-                    <path d="M440 237v18m-6-12c0-2 2-4 6-4s6 2 6 4-2 4-6 4-6 2-6 4 2 4 6 4 6-2 6-4" stroke="#FFF7E8" stroke-width="2.5" stroke-linecap="round"/>
+                    <ellipse cx="267" cy="303" rx="206" ry="17" fill="#0B2F25" fill-opacity=".26"/>
+                    <circle cx="277" cy="169" r="146" fill="#E7B56E" fill-opacity=".14"/>
+                    <path d="M82 228c28-43 67-64 117-64 32 0 58 11 83 34 24-30 57-45 98-45 31 0 60 9 87 27v96H82v-48Z" fill="#39745A" fill-opacity=".66"/>
+                    <path d="M95 219h341c15 0 27 12 27 27v20H68v-20c0-15 12-27 27-27Z" fill="#E8B47D"/>
+                    <path d="M82 264h367v34c0 8-7 15-15 15H97c-8 0-15-7-15-15v-34Z" fill="#C9814E"/>
+                    <path d="M105 281h317" stroke="#E7AD78" stroke-width="5" stroke-linecap="round"/>
+                    <rect x="206" y="118" width="137" height="111" rx="15" transform="rotate(-5 206 118)" fill="#F7F1E4"/>
+                    <rect x="218" y="132" width="112" height="73" rx="8" transform="rotate(-5 218 132)" fill="#204C3A"/>
+                    <path d="m234 151 78-7m-75 22 46-4m-43 19 58-5" stroke="#D5E4D7" stroke-width="5" stroke-linecap="round"/>
+                    <circle cx="276" cy="216" r="5" fill="#E6A451"/>
+                    <rect x="358" y="102" width="74" height="108" rx="9" transform="rotate(8 358 102)" fill="#FFF9EC"/>
+                    <path d="m371 126 42 6m-45 9 39 6m-42 8 33 5" stroke="#C7CBBF" stroke-width="4" stroke-linecap="round"/>
+                    <path d="m371 172 7 1m7 1 7 1m7 1 7 1m-30 8 7 1m8 1 7 1" stroke="#39805E" stroke-width="5" stroke-linecap="round"/>
+                    <rect x="104" y="100" width="107" height="66" rx="14" fill="#FFF9EC"/>
+                    <circle cx="126" cy="122" r="8" fill="#E6A451"/>
+                    <path d="M143 120h49M117 143h74" stroke="#C7CBBF" stroke-width="5" stroke-linecap="round"/>
+                    <path d="M78 200c0-19 10-35 23-42m-7 43c0-12 7-24 16-31m-8 34c0-7 4-14 10-19" stroke="#E5B373" stroke-width="6" stroke-linecap="round"/>
+                    <path d="M451 203c0-18-10-32-22-40m7 42c0-12-6-22-15-29m8 32c0-7-4-13-9-18" stroke="#E5B373" stroke-width="6" stroke-linecap="round"/>
+                    <circle cx="145" cy="197" r="12" fill="#E6A451"/>
+                    <path d="M140 197h10m-5-5v10" stroke="#FFF9EC" stroke-width="2.5" stroke-linecap="round"/>
                 </svg>
             </div>
 
             <div class="auth-brand-footer">
                 <span class="auth-footer-dot" aria-hidden="true"></span>
-                <span>Pesanan rapi, pelayanan tetap hangat.</span>
+                <span>Setiap transaksi tercatat, pelayanan tetap hangat.</span>
             </div>
         </aside>
     </main>

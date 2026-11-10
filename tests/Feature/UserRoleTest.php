@@ -3,10 +3,11 @@
 use App\Enums\UserRole;
 use App\Models\User;
 
-test('user role enum exposes the admin and kasir values', function () {
+test('user role enum exposes the administrator utama admin and kasir values', function () {
     expect(UserRole::Admin->value)->toBe('admin')
         ->and(UserRole::Kasir->value)->toBe('kasir')
-        ->and(UserRole::cases())->toHaveCount(2);
+        ->and(UserRole::AdministratorUtama->value)->toBe('administrator_utama')
+        ->and(UserRole::cases())->toHaveCount(3);
 });
 
 test('the factory creates kasir users by default', function () {
@@ -22,6 +23,15 @@ test('the admin state creates admin users', function () {
 
     expect($user->role)->toBe(UserRole::Admin)
         ->and($user->isAdmin())->toBeTrue()
+        ->and($user->isKasir())->toBeFalse();
+});
+
+test('the super admin factory state creates the specially marked role', function () {
+    $user = User::factory()->superAdmin()->create();
+
+    expect($user->role)->toBe(UserRole::AdministratorUtama)
+        ->and($user->isSuperAdmin())->toBeTrue()
+        ->and($user->isAdmin())->toBeFalse()
         ->and($user->isKasir())->toBeFalse();
 });
 

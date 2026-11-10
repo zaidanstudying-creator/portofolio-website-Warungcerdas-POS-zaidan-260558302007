@@ -26,6 +26,20 @@
         </div>
 
         <nav class="flex-1 space-y-1 p-3">
+            @if (auth()->user()?->isSuperAdmin())
+                <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
+                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span>Pengelolaan Akun</span>
+                </x-nav-link>
+                <x-nav-link :href="route('account.password.edit')" :active="request()->routeIs('account.password.*')">
+                    <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4M12 15v2" />
+                    </svg>
+                    <span>Ubah Password</span>
+                </x-nav-link>
+            @else
             <x-nav-link :href="route('pos.index')" :active="request()->routeIs('pos.index')">
                 <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="9" cy="20" r="1.5" /><circle cx="18" cy="20" r="1.5" />
@@ -118,6 +132,7 @@
                     <span>Pengguna</span>
                 </x-nav-link>
             @endif
+            @endif
         </nav>
 
         <div data-sidebar-footer class="space-y-3 border-t border-white/10 px-5 py-4">
@@ -125,7 +140,7 @@
             <div data-sidebar-user class="min-w-0">
                 <p class="break-words text-sm font-medium text-white">{{ auth()->user()?->name }}</p>
                 <p class="break-all text-xs leading-5 text-slate-400">{{ auth()->user()?->email }}</p>
-                <p class="mt-1 text-xs text-emerald-300">{{ auth()->user()?->role?->value ?? auth()->user()?->role }}</p>
+                <p class="mt-1 text-xs text-emerald-300">{{ auth()->user()?->isSuperAdmin() ? 'Administrator Utama' : (auth()->user()?->role?->value ?? auth()->user()?->role) }}</p>
             </div>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
@@ -157,7 +172,9 @@
             <div class="ml-auto flex min-w-0 items-center gap-2">
                 <x-store-logo class="h-8 w-8 md:hidden" />
                 <span class="hidden max-w-40 truncate text-sm font-medium md:block">{{ \App\Http\Controllers\SettingController::storeName() }}</span>
-                <x-store-status />
+                @unless (auth()->user()?->isSuperAdmin())
+                    <x-store-status />
+                @endunless
             </div>
         </header>
 
@@ -165,6 +182,11 @@
             <x-flash />
             @yield('content')
         </main>
+
+        <footer class="border-t border-slate-200 bg-white px-4 py-3 text-center text-xs text-slate-500 sm:px-6 sm:text-right">
+            Butuh bantuan? Hubungi Zaidan
+            <a href="tel:+6285158512007" class="font-semibold text-emerald-700 underline-offset-4 hover:underline">085158512007</a>
+        </footer>
     </div>
 </div>
 

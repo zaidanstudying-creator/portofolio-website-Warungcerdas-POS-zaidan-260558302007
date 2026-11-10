@@ -43,6 +43,14 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function superAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::AdministratorUtama,
+            'super_admin_key' => 'primary',
+        ]);
+    }
+
     public function kasir(): static
     {
         return $this->state(fn (array $attributes) => [

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ActivityLog;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -80,6 +81,9 @@ test('a user can reset their password with the emailed token', function () {
         ->assertSessionHas('success', 'Kata sandi berhasil direset. Silakan login.');
 
     expect(Hash::check('rahasia-baru-123', $user->refresh()->password))->toBeTrue();
+
+    $log = ActivityLog::where('event', 'password_reset_completed')->firstOrFail();
+    expect($log->properties)->toBe(['email' => $user->email]);
 });
 
 test('an invalid password reset token does not change the password', function () {
@@ -115,6 +119,71 @@ test('a user can log in with valid credentials', function () {
     $response->assertRedirect(route('welcome'));
 
     $this->assertAuthenticatedAs($user);
+});
+
+test('super admin login lands directly on account management', function () {
+    $superAdmin = User::factory()->superAdmin()->create([
+        'email' => 'utama@example.test',
+        'password' => 'passwordUtama123',
+    ]);
+
+    $this->post(route('login.store'), [
+        'email' => 'utama@example.test',
+        'password' => 'passwordUtama123',
+    ])->assertRedirect(route('users.index'));
+
+    $this->assertAuthenticatedAs($superAdmin);
+});
+
+test('a super admin can safely change their own password', function () {
+    $superAdmin = User::factory()->superAdmin()->create([
+        'password' => 'passwordLama123',
+    ]);
+    $this->actingAs($superAdmin);
+
+    $this->get(route('account.password.edit'))
+        ->assertOk()
+        ->assertSee('name="_token"', false)
+        ->assertSee('name="current_password"', false);
+
+    $this->put(route('account.password.update'), [
+        'current_password' => 'password-salah',
+        'password' => 'PasswordBaru12345',
+        'password_confirmation' => 'PasswordBaru12345',
+    ])->assertSessionHasErrors('current_password');
+
+    expect(Hash::check('passwordLama123', $superAdmin->refresh()->password))->toBeTrue();
+
+    $this->put(route('account.password.update'), [
+        'current_password' => 'passwordLama123',
+        'password' => 'PasswordBaru12345',
+        'password_confirmation' => 'PasswordBaru12345',
+    ])->assertRedirect();
+
+    expect(Hash::check('PasswordBaru12345', $superAdmin->refresh()->password))->toBeTrue()
+        ->and(ActivityLog::where('event', 'own_password_changed')->count())->toBe(1);
+
+    $log = ActivityLog::where('event', 'own_password_changed')->firstOrFail();
+    expect($log->description)->not->toContain('PasswordBaru12345')
+        ->and(json_encode($log->properties))->toBe('null');
+});
+
+test('self password change rejects requests without a CSRF token', function () {
+    $superAdmin = User::factory()->superAdmin()->create([
+        'password' => 'passwordLama123',
+    ]);
+    $this->actingAs($superAdmin);
+    $this->app->instance('env', 'production');
+
+    $this->put(route('account.password.update'), [
+        'current_password' => 'passwordLama123',
+        'password' => 'PasswordBaru12345',
+        'password_confirmation' => 'PasswordBaru12345',
+    ])->assertStatus(419);
+
+    $this->app->instance('env', 'testing');
+
+    expect(Hash::check('passwordLama123', $superAdmin->refresh()->password))->toBeTrue();
 });
 
 test('login always redirects to the welcome page instead of an intended asset URL', function () {

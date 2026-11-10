@@ -45,6 +45,12 @@ class CreateAdminCommand extends Command
                 return self::FAILURE;
             }
 
+            if ($user->hasSuperAdminMarker()) {
+                $this->error('Administrator Utama tidak dapat diubah melalui perintah ini.');
+
+                return self::FAILURE;
+            }
+
             if ($user->role === UserRole::Admin) {
                 $this->info('Pengguna sudah berperan sebagai admin.');
 
@@ -87,7 +93,7 @@ class CreateAdminCommand extends Command
         $email = strtolower(trim($email));
 
         $pass = password(
-            label: 'Kata sandi (minimal 12 karakter)',
+            label: 'Kata sandi (minimal 8 karakter)',
             required: true,
         );
 
@@ -103,7 +109,7 @@ class CreateAdminCommand extends Command
         }
 
         $validator = Validator::make(['password' => $pass], [
-            'password' => ['required', Password::min(12)->letters()->numbers()],
+            'password' => ['required', Password::min(8)->letters()->numbers()],
         ]);
 
         if ($validator->fails()) {

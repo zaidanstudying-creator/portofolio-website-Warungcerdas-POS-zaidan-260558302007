@@ -1,12 +1,16 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\ActivityLog;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 
 test('guests cannot access user management', function () {
     $this->get(route('users.index'))->assertRedirect(route('login'));
     $this->get(route('users.create'))->assertRedirect(route('login'));
+    $this->get(route('account.password.edit'))->assertRedirect(route('login'));
     $this->post(route('users.store'), [])->assertRedirect(route('login'));
 });
 
@@ -22,8 +26,6 @@ test('kasir cannot view, create, or update users', function () {
         'name' => 'Baru',
         'email' => 'baru@example.test',
         'role' => UserRole::Kasir->value,
-        'password' => 'rahasia123456',
-        'password_confirmation' => 'rahasia123456',
     ])->assertForbidden();
     $this->put(route('users.update', $target), [
         'name' => 'Ubah',
@@ -43,23 +45,24 @@ test('admin can view the user list', function () {
         ->assertSee($kasir->email);
 });
 
-test('admin can create kasir and admin accounts', function () {
+test('admin can create kasir and admin accounts with directly assigned hashed passwords', function () {
+    Notification::fake();
     $this->actingAs(User::factory()->admin()->create());
 
     $this->post(route('users.store'), [
         'name' => 'Kasir Baru',
         'email' => 'Kasir.Baru@Example.test',
         'role' => UserRole::Kasir->value,
-        'password' => 'rahasia123456',
-        'password_confirmation' => 'rahasia123456',
+        'password' => 'Kasir12A',
+        'password_confirmation' => 'Kasir12A',
     ])->assertRedirect(route('users.index'));
 
     $this->post(route('users.store'), [
         'name' => 'Admin Baru',
         'email' => 'admin.baru@example.test',
         'role' => UserRole::Admin->value,
-        'password' => 'rahasia123456',
-        'password_confirmation' => 'rahasia123456',
+        'password' => 'Admin12A',
+        'password_confirmation' => 'Admin12A',
     ])->assertRedirect(route('users.index'));
 
     $kasir = User::where('email', 'kasir.baru@example.test')->firstOrFail();
@@ -68,6 +71,13 @@ test('admin can create kasir and admin accounts', function () {
     expect($kasir->role)->toBe(UserRole::Kasir)
         ->and($kasir->isActive())->toBeTrue()
         ->and($admin->role)->toBe(UserRole::Admin);
+
+    expect(Hash::check('Kasir12A', $kasir->password))->toBeTrue()
+        ->and(Hash::check('Admin12A', $admin->password))->toBeTrue()
+        ->and(ActivityLog::where('event', 'created')->count())->toBe(2)
+        ->and(ActivityLog::where('event', 'password_set_by_admin')->count())->toBe(2);
+
+    Notification::assertNothingSent();
 });
 
 test('duplicate email is rejected', function () {
@@ -78,18 +88,26 @@ test('duplicate email is rejected', function () {
         'name' => 'Duplikat',
         'email' => 'ada@example.test',
         'role' => UserRole::Kasir->value,
-        'password' => 'rahasia123456',
-        'password_confirmation' => 'rahasia123456',
+        'password' => 'PasswordAwal12345',
+        'password_confirmation' => 'PasswordAwal12345',
     ])->assertSessionHasErrors('email');
 
     expect(User::where('email', 'ada@example.test')->count())->toBe(1);
 });
 
-test('password must follow the policy on create', function () {
+test('admin assigned passwords must satisfy the password policy', function () {
     $this->actingAs(User::factory()->admin()->create());
 
     $this->post(route('users.store'), [
-        'name' => 'Lemah',
+        'name' => 'Password Tujuh Karakter',
+        'email' => 'tujuh@example.test',
+        'role' => UserRole::Kasir->value,
+        'password' => 'Aa12345',
+        'password_confirmation' => 'Aa12345',
+    ])->assertSessionHasErrors('password');
+
+    $this->post(route('users.store'), [
+        'name' => 'Password Lemah',
         'email' => 'lemah@example.test',
         'role' => UserRole::Kasir->value,
         'password' => 'pendek1',
@@ -97,34 +115,35 @@ test('password must follow the policy on create', function () {
     ])->assertSessionHasErrors('password');
 
     $this->post(route('users.store'), [
-        'name' => 'Tanpa Angka',
+        'name' => 'Password Tanpa Angka',
         'email' => 'tanpaangka@example.test',
         'role' => UserRole::Kasir->value,
         'password' => 'hanyahurufaja',
         'password_confirmation' => 'hanyahurufaja',
     ])->assertSessionHasErrors('password');
 
-    expect(User::where('email', 'lemah@example.test')->exists())->toBeFalse()
-        ->and(User::where('email', 'tanpaangka@example.test')->exists())->toBeFalse();
+    expect(User::whereIn('email', ['lemah@example.test', 'tanpaangka@example.test'])->exists())->toBeFalse();
 });
 
-test('empty password on edit keeps the old password', function () {
+test('account management rejects attempts to create or promote a super admin', function () {
+    Notification::fake();
     $this->actingAs(User::factory()->admin()->create());
-    $target = User::factory()->kasir()->create(['password' => 'password-lama']);
-    $original = $target->password;
 
+    $this->post(route('users.store'), [
+        'name' => 'Akun istimewa palsu',
+        'email' => 'palsu@example.test',
+        'role' => UserRole::AdministratorUtama->value,
+    ])->assertSessionHasErrors('role');
+
+    $target = User::factory()->kasir()->create();
     $this->put(route('users.update', $target), [
-        'name' => 'Nama Diubah',
+        'name' => $target->name,
         'email' => $target->email,
-        'role' => UserRole::Kasir->value,
-        'password' => '',
-        'password_confirmation' => '',
-    ])->assertRedirect(route('users.index'));
+        'role' => UserRole::AdministratorUtama->value,
+    ])->assertSessionHasErrors('role');
 
-    $target->refresh();
-
-    expect($target->name)->toBe('Nama Diubah')
-        ->and($target->password)->toBe($original);
+    expect(User::whereNotNull('super_admin_key')->count())->toBe(0)
+        ->and($target->refresh()->role)->toBe(UserRole::Kasir);
 });
 
 test('admin can change a user role', function () {
@@ -267,7 +286,7 @@ test('a rejected last-admin change leaves no partial update', function () {
         ->and($admin->role)->toBe(UserRole::Admin);
 });
 
-test('a non-admin mutation can still update profile and password', function () {
+test('an admin can update an ordinary account without changing its password', function () {
     $this->actingAs(User::factory()->admin()->create());
     $target = User::factory()->kasir()->create(['password' => 'password-lama']);
     $oldHash = $target->password;
@@ -276,14 +295,148 @@ test('a non-admin mutation can still update profile and password', function () {
         'name' => 'Nama Baru',
         'email' => 'baru@example.test',
         'role' => UserRole::Kasir->value,
-        'password' => 'sandiBaru12345',
-        'password_confirmation' => 'sandiBaru12345',
     ])->assertRedirect(route('users.index'));
 
     $target->refresh();
 
     expect($target->name)->toBe('Nama Baru')
         ->and($target->email)->toBe('baru@example.test')
-        ->and($target->password)->not->toBe($oldHash)
-        ->and(Hash::check('sandiBaru12345', $target->password))->toBeTrue();
+        ->and($target->password)->toBe($oldHash)
+        ->and(Hash::check('password-lama', $target->password))->toBeTrue();
+});
+
+test('admin and kasir cannot update delete or reset the super admin through direct requests', function () {
+    Notification::fake();
+    $superAdmin = User::factory()->superAdmin()->create();
+
+    foreach ([User::factory()->admin()->create(), User::factory()->kasir()->create()] as $actor) {
+        $this->actingAs($actor);
+
+        $this->put(route('users.update', $superAdmin), [
+            'name' => 'Manipulated',
+            'email' => $superAdmin->email,
+            'role' => UserRole::Kasir->value,
+            'password' => 'PasswordManipulasi123',
+            'password_confirmation' => 'PasswordManipulasi123',
+            'is_active' => '0',
+        ])->assertForbidden();
+
+        $this->delete(route('users.destroy', $superAdmin))->assertForbidden();
+    }
+
+    expect($superAdmin->refresh()->isSuperAdmin())->toBeTrue()
+        ->and($superAdmin->isActive())->toBeTrue();
+
+    Notification::assertNothingSent();
+});
+
+test('only one row can hold the super admin marker', function () {
+    User::factory()->superAdmin()->create();
+
+    expect(fn () => User::factory()->superAdmin()->create())
+        ->toThrow(UniqueConstraintViolationException::class);
+});
+
+test('the unique marker keeps protecting the account if its role is manually changed', function () {
+    Notification::fake();
+    $protectedUser = User::factory()->superAdmin()->create();
+    $protectedUser->forceFill(['role' => UserRole::Admin])->save();
+    $this->actingAs($protectedUser);
+
+    $this->get(route('users.index'))->assertForbidden();
+    $this->get(route('pos.index'))->assertForbidden();
+
+    $this->actingAs(User::factory()->admin()->create());
+
+    $this->put(route('users.update', $protectedUser), [
+        'name' => $protectedUser->name,
+        'email' => $protectedUser->email,
+        'role' => UserRole::Kasir->value,
+        'password' => 'PasswordManipulasi123',
+        'password_confirmation' => 'PasswordManipulasi123',
+    ])->assertForbidden();
+
+    $this->delete(route('users.destroy', $protectedUser))->assertForbidden();
+
+    Notification::assertNothingSent();
+    expect($protectedUser->refresh()->hasSuperAdminMarker())->toBeTrue();
+});
+
+test('super admin can manage ordinary accounts but cannot reach operational modules', function () {
+    Notification::fake();
+    $superAdmin = User::factory()->superAdmin()->create();
+    $target = User::factory()->kasir()->create();
+    $this->actingAs($superAdmin);
+
+    $this->get(route('users.index'))->assertOk();
+    $this->get(route('users.edit', $target))->assertOk();
+    $this->get(route('account.password.edit'))->assertOk();
+    $this->get(route('welcome'))->assertForbidden();
+    $this->get(route('pos.index'))->assertForbidden();
+    $this->get(route('orders.index'))->assertForbidden();
+    $this->get(route('reports.index'))->assertForbidden();
+    $this->get(route('finance.index'))->assertForbidden();
+    $this->get(route('settings.qris.edit'))->assertForbidden();
+
+    $this->put(route('users.update', $target), [
+        'name' => 'Nama Baru',
+        'email' => $target->email,
+        'role' => UserRole::Kasir->value,
+        'is_active' => '0',
+    ])->assertRedirect(route('users.index'));
+
+    expect($target->refresh()->name)->toBe('Nama Baru')
+        ->and($target->isActive())->toBeFalse();
+
+    $this->put(route('users.update', $target), [
+        'name' => 'Nama Baru',
+        'email' => $target->email,
+        'role' => UserRole::Kasir->value,
+        'is_active' => '1',
+    ])->assertRedirect(route('users.index'));
+
+    expect($target->refresh()->isActive())->toBeTrue();
+});
+
+test('admins can directly reset ordinary account passwords without sending email', function () {
+    Notification::fake();
+    $actors = [
+        User::factory()->admin()->create(),
+        User::factory()->superAdmin()->create(),
+    ];
+
+    foreach ($actors as $index => $actor) {
+        $target = User::factory()->kasir()->create([
+            'password' => 'PasswordLama123',
+        ]);
+        $this->actingAs($actor);
+
+        $this->get(route('users.edit', $target))
+            ->assertOk()
+            ->assertSee('Password baru (opsional)')
+            ->assertDontSee('PasswordLama123');
+
+        $this->put(route('users.update', $target), [
+            'name' => $target->name,
+            'email' => $target->email,
+            'role' => UserRole::Kasir->value,
+            'password' => "PasswordBaru{$index}12345",
+            'password_confirmation' => "PasswordBaru{$index}12345",
+        ])->assertRedirect(route('users.index'))
+            ->assertSessionHas('success', 'Akun berhasil diperbarui dan password baru disimpan.');
+
+        expect(Hash::check("PasswordBaru{$index}12345", $target->refresh()->password))->toBeTrue()
+            ->and(Hash::check('PasswordLama123', $target->password))->toBeFalse();
+    }
+
+    $logs = ActivityLog::where('event', 'password_reset_by_admin')->get();
+    expect($logs)->toHaveCount(2);
+
+    foreach ($logs as $log) {
+        expect($log->properties)->toBe(['method' => 'account_edit'])
+            ->and(json_encode($log->properties))->not->toContain('password')
+            ->and(json_encode($log->properties))->not->toContain('PasswordBaru');
+    }
+
+    Notification::assertNothingSent();
 });
